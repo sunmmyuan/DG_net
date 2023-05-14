@@ -1,0 +1,1 @@
+Code for the article: A Characteristic-Featured Shock Wave Indicator for Conservation Laws Based on Training an Artificial Neuron
