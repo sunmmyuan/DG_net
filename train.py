@@ -42,7 +42,7 @@ def train_model(model, train_dataloader, test_dataloader, start_epoch, lr_schedu
             lr = lr_schedule(epoch_now)
             opt.param_groups[0].update(lr=lr)
             pred = model(x)
-            loss = criterion(pred, y.float())
+            loss = criterion(pred.reshape_as(y), y.float())
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -59,7 +59,7 @@ def train_model(model, train_dataloader, test_dataloader, start_epoch, lr_schedu
             x, y = batch
             pred = model(x)
             # loss = criterion(pred, y)
-            loss = (pred-y)**2
+            loss = criterion(pred.reshape_as(y), y.float())
 
             test_loss += loss.item()*y.size(0)
             test_acc += sum(torch.round(pred.reshape_as(y)) == y)
@@ -236,7 +236,8 @@ def main():
     # 设置超参
     params = model.parameters()
     opt, lr_s = lrSchedule(params, args)
-    criterion = nn.MSELoss()  # 损失函数
+    criterion = nn.MSELoss()  # 损失函数 对于相同的误差,惩罚越大得到的acc越好(因为得到的数据是相同分布的)
+    # criterion = lambda x,y:sum((x-y)**2)  # 损失函数
 
     # 断点开始
     pth_list = [int(name[:-4].split('_')[1])
