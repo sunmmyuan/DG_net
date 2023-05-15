@@ -42,13 +42,13 @@ def train_model(model, train_dataloader, test_dataloader, start_epoch, lr_schedu
             lr = lr_schedule(epoch_now)
             opt.param_groups[0].update(lr=lr)
             pred = model(x)
-            loss = criterion(pred, y)
+            loss = criterion(pred, y.float())
             opt.zero_grad()
             loss.backward()
             opt.step()
 
             train_loss += loss.item()*y.size(0)
-            train_acc += sum(pred.max(1)[1].numpy() == y.numpy())
+            train_acc += sum(torch.round(pred.reshape_as(y)) == y)
             train_n += y.size(0)
         train_time = time.time()
 
@@ -58,10 +58,11 @@ def train_model(model, train_dataloader, test_dataloader, start_epoch, lr_schedu
         for id, batch in enumerate(test_dataloader):
             x, y = batch
             pred = model(x)
-            loss = criterion(pred, y)
+            # loss = criterion(pred, y)
+            loss = (pred-y)**2
 
             test_loss += loss.item()*y.size(0)
-            test_acc += sum(pred.max(1)[1].numpy() == y.numpy())
+            test_acc += sum(torch.round(pred.reshape_as(y)) == y)
             test_n += y.size(0)
         test_time = time.time()
 
@@ -117,7 +118,7 @@ def get_args():
     parser.add_argument('--checkpoint_iters', default=100, type=int)
     parser.add_argument(
         '--filename', default='trained_model_defaut', type=str)  # 模型及本次训练结果保存路径
-    parser.add_argument('--save_data', action='store_true') #是否保存数据集
+    parser.add_argument('--save_data', default=True, type=bool) #是否保存数据集
 
 
     #about model
@@ -127,7 +128,7 @@ def get_args():
     parser.add_argument('--lr-one-drop', default=0.01, type=float)
     parser.add_argument('--lrdecay', default='base', type=str,
                         choices=['intenselr', 'base', 'looselr', 'lineardecay'])
-    parser.add_argument('--optimizer', default='momentum',
+    parser.add_argument('--optimizer', default='Adam',
                         choices=['momentum', 'Nesterov', 'Adam', 'AdamW'])
     parser.add_argument('--weight_decay', default=5e-4, type=float)
     return parser.parse_args()
@@ -235,11 +236,11 @@ def main():
     # 设置超参
     params = model.parameters()
     opt, lr_s = lrSchedule(params, args)
-    criterion = nn.CrossEntropyLoss()  # 损失函数
+    criterion = nn.MSELoss()  # 损失函数
 
     # 断点开始
-    pth_list = [name[:-4].split('_')[1]
-                for name in os.listdir(args.filename) if fnmatch(name, '*.pth')]
+    pth_list = [int(name[:-4].split('_')[1])
+                for name in os.listdir(args.filename) if fnmatch(name, 'model_*.pth')and name!='model_best.pth']
     if args.resume and pth_list:
         start_epoch = args.resume
         model.load_state_dict(torch.load(os.path.join(
@@ -249,10 +250,12 @@ def main():
         logger.info(f'Resumeing at epoch {start_epoch}')
 
     elif os.path.exists(args.filename) and pth_list:
-        temp = max([name[:-4].split('_')[1]
-                   for name in os.listdir(args.filename) if fnmatch(name, '*.pth')])
+        temp = max(pth_list)
+        start_epoch=temp
         model.load_state_dict(torch.load(os.path.join(
             args.filename, f'model_{temp}.pth')))
+        opt.load_state_dict(torch.load(os.path.join(
+            args.filename, f'opt_{temp}.pth')))
         logger.info(f'Resumeing at epoch {temp}')
     else:
         start_epoch = 0

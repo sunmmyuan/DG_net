@@ -2,6 +2,7 @@ from scipy.special import roots_legendre
 import json
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
 
 # 生成数据集：[{'data':[],'label':num},{'data':[],'label':num}...}
@@ -24,15 +25,18 @@ class Generate_discon_data():
 
     def get_data(self):
         # 得到数据,为了数据平衡,每生成一次函数取一个正常区域一个间断区域
-        t, xl, xr = np.random.random(3)
-        t = t*self.tb
-        xl = (self.initb-self.inita)*xl+self.inita
-        xr = (self.initb-self.inita)*xr+self.inita
+        
         file1 = []
         while len(file1) < self.num1:
+            t=np.random.random(1)
+            t = t*self.tb
             a = self.function1(t, self.data_i)
             file1 = file1+a
         while len(file1) < self.num2:
+            t, xl, xr = np.random.random(3)
+            t = t*self.tb
+            xl = (self.initb-self.inita)*xl+self.inita
+            xr = (self.initb-self.inita)*xr+self.inita
             a = self.function2(t, xl, xr, self.data_i)
             file1 = file1+a
         return file1
@@ -41,6 +45,7 @@ class Generate_discon_data():
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
         with open(os.path.join(self.save_path, f'{self.status}.json'), 'w', encoding='utf-8') as f:
+            self.labelfile=[{'data':list(i['data']), 'label':i['label']} for i in self.labelfile]
             json.dump(self.labelfile, f)
         pass
 
@@ -71,6 +76,7 @@ class BURGER():
                 # print("epsilon=", np.linalg.norm(eps1))
                 break
         # plt.scatter(xc_gauss, self.u0(omega))
+        # plt.title(f'{t}')
         # plt.show()
         # 五点位置上值加权weight得到精确值
         mean_xc = np.array([sum(self.u0(omega)[i*self.gauss_n:(i+1)*self.gauss_n]*weights)
@@ -115,6 +121,7 @@ class BURGER():
                 position = int(i//self.gauss_n)
 
         # plt.scatter(xc_gauss, u)
+        # plt.title(f'{t},{ul},{ur}')
         # plt.show()
         mean_xc = np.array(
             [sum(u[i*self.gauss_n:(i+1)*self.gauss_n]*weights) for i in range(len(xc))])
@@ -160,7 +167,7 @@ def main():
     test = BURGER()
     # print(test.get_R_point(2, 2, 4))
     # print(test.get_disc_point(2))
-    a = Generate_discon_data(test.get_disc_point, test.get_R_point)
+    a = Generate_discon_data(test.get_disc_point, test.get_R_point, data_num=(4, 12))
     a.get_data()
 
 
